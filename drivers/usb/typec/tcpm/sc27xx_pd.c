@@ -19,7 +19,6 @@
 #include <linux/usb/tcpm.h>
 #include <linux/usb/pd.h>
 #include <linux/usb/typec_dp.h>
-#include <linux/power_supply.h>
 
 /* PMIC global registers definition */
 #define SC27XX_MODULE_EN		0x1808
@@ -1244,41 +1243,19 @@ static int sc27xx_get_vbus_status(struct sc27xx_pd *pd)
 	u32 status = 0;
 	bool vbus_present;
 	int ret;
-//modify by fangduozhu.wt, SCP-2483, ignore vbus change begin
-	union power_supply_propval val;
-	struct power_supply *fuel_gauge;
 
 	ret = regmap_read(pd->regmap, pd->typec_base +
 			  SC27XX_TYPEC_DBG1, &status);
 	if (ret < 0)
 		return ret;
+
 	vbus_present = !!(status & SC27XX_TYPEC_VBUS_OK);
-	dev_err(pd->dev, "vbus_present flag:%d\n", vbus_present);
-
-	fuel_gauge = power_supply_get_by_name("sc27xx-fgu");
-	if (!fuel_gauge) {
-		dev_err(pd->dev, "fail to get psy 'sc27xx-fgu'\n");
-		return 0;
-	}
-	ret = power_supply_get_property(fuel_gauge,
-			POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE, &val);
-	power_supply_put(fuel_gauge);
-	if (ret) {
-		dev_err(pd->dev, "fail to get vchg from psy 'sc27xx-fgu'\n");
-		return 0;
-	}
-
-	if (val.intval > 7500) {
-		vbus_present = 1;
-	} else {
-		vbus_present = 0;
-	}
 
 	if (vbus_present != pd->vbus_present) {
 		pd->vbus_present = vbus_present;
 		tcpm_vbus_change(pd->tcpm_port);
 	}
-//modify by fangduozhu.wt, SCP-2483, ignore vbus change end
+
 	return 0;
 }
 

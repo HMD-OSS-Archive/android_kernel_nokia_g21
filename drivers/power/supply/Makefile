@@ -6,7 +6,11 @@ ifeq ($(WT_COMPILE_FACTORY_VERSION),yes)
     ccflags-y += -DWT_COMPILE_FACTORY_VERSION
 endif
 #-chk2828, fangduozhu, add, 20210908, for ato charging capacity control
-
+#zhiqing.liu add, SCP-3679, RDX version charging capacity control, 20220105 begin
+ifeq ($(HMD_DEMO_SUPPORT),true)
+    ccflags-y += -DHMD_DEMO_SUPPORT
+endif
+#zhiqing.liu add, SCP-3679, RDX version charging capacity control, 20220105 end
 #GCOV_PROFILE := $(CONFIG_SPRD_SUPPLY_GCOV)
 
 power_supply-y				:= power_supply_core.o

@@ -1369,6 +1369,7 @@ static void cm_update_current_jeita_status(struct charger_manager *cm)
 	}
 }
 
+static struct ac_data ac_main;
 static void cm_update_charge_info(struct charger_manager *cm, int cmd)
 {
 	struct charger_desc *desc = cm->desc;
@@ -1502,6 +1503,9 @@ static void cm_update_charge_info(struct charger_manager *cm, int cmd)
 		 desc->cp.recovery, desc->charge_limit_cur, desc->input_limit_cur,
 		 desc->charge_voltage_max, desc->charge_voltage_drop,
 		 thm_info->adapter_default_charge_vol * 1000, thm_info->thm_adjust_cur, cmd);
+
+	if (cm->desc->is_fast_charge)
+		ac_main.is_fast_charger = 1;
 
 	if (!cm->cm_charge_vote || !cm->cm_charge_vote->vote) {
 		dev_err(cm->dev, "%s: cm_charge_vote is null\n", __func__);
@@ -1898,7 +1902,7 @@ static int cm_fast_charge_enable_check(struct charger_manager *cm)
 		dev_warn(cm->dev, "failed to get board temperature\n");
 		tboard = 250;
 	}
-	if (tboard >= 420) {
+	if (tboard >= 410) {
 		dev_warn(cm->dev, "board<%d> too high to enable fast_chg\n", tboard);
 		return 0;
 	}
@@ -2040,13 +2044,13 @@ static int cm_fast_charge_disable_check(struct charger_manager *cm)
 	}
 	if (tboard >= 440) {
 		dev_warn(cm->dev, "board<%d> too high, disable fast_chg\n", tboard);
-		cm->desc->fast_charge_disable_count == CM_FAST_CHARGE_DISABLE_COUNT;
+		cm->desc->fast_charge_disable_count = CM_FAST_CHARGE_DISABLE_COUNT;
 	}
 //add by fangduozhu.wt, jeita policy update(2021.12.17) end
 
 //add by fangduozhu.wt, decrease charge vol to 5V when camera opened(2021.11.10) begin
 	if (jeita_camera_in_use)
-		cm->desc->fast_charge_disable_count == CM_FAST_CHARGE_DISABLE_COUNT;
+		cm->desc->fast_charge_disable_count = CM_FAST_CHARGE_DISABLE_COUNT;
 //add by fangduozhu.wt, decrease charge vol to 5V when camera opened(2021.11.10) end
 
 	if (cm->desc->fast_charge_disable_count < CM_FAST_CHARGE_DISABLE_COUNT)
@@ -3737,12 +3741,12 @@ static bool cm_manager_adjust_current(struct charger_manager *cm,
 					skip_temp_record = true;
 					target_cur = jeita_lcd_brightness?3200000:3200000;
 				} else {
-					target_cur = jeita_lcd_brightness?2200000:2200000;
+					target_cur = jeita_lcd_brightness?1800000:1800000;
 				}
 			} else if (board_temp>=480) {
 				if (board_temp<490 && last_board_temp<480) {
 					skip_temp_record = true;
-					target_cur = jeita_lcd_brightness?2200000:2200000;
+					target_cur = jeita_lcd_brightness?1800000:1800000;
 				} else {
 					target_cur = jeita_lcd_brightness?500000:800000;
 				}
@@ -4093,7 +4097,8 @@ out:
 }
 
 //+chk2828, fangduozhu, add, 20210908, for ato charging capacity control
-#ifdef WT_COMPILE_FACTORY_VERSION
+//#ifdef WT_COMPILE_FACTORY_VERSION
+#if defined(WT_COMPILE_FACTORY_VERSION) || defined(HMD_DEMO_SUPPORT) //zhiqing.liu add, SCP-3679, RDX version charging capacity control, 20220105
 #define ATO_HIGH_CAP 70
 #define ATO_LOW_CAP 50
 static bool cm_charge_check_ato(struct charger_manager *cm)
@@ -4171,7 +4176,8 @@ static int cm_get_target_status(struct charger_manager *cm)
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 	}
 //+chk2828, fangduozhu, add, 20210908, for ato charging capacity control
-#ifdef WT_COMPILE_FACTORY_VERSION
+//#ifdef WT_COMPILE_FACTORY_VERSION
+#if defined(WT_COMPILE_FACTORY_VERSION) || defined(HMD_DEMO_SUPPORT)	//zhiqing.liu add, SCP-3679, RDX version charging capacity control, 20220105
 	if (cm_charge_check_ato(cm))
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 #endif
@@ -4630,6 +4636,18 @@ static int ac_get_property(struct power_supply *psy, enum power_supply_property 
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = data->AC_ONLINE;
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		if (data->is_fast_charger)
+			val->intval = 9000000;
+		else
+			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		if (data->is_fast_charger)
+			val->intval = 2200000;
+		else
+			val->intval = 0;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -4647,18 +4665,6 @@ static int usb_get_property(struct power_supply *psy, enum power_supply_property
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = data->USB_ONLINE;
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		if (data->is_fast_charger)
-			val->intval = 9000000;
-		else
-			val->intval = 0;
-		break;
-	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		if (data->is_fast_charger)
-			val->intval = 2200000;
-		else
-			val->intval = 0;
 		break;
 	default:
 		ret = -EINVAL;
@@ -5033,6 +5039,8 @@ static enum power_supply_property wireless_props[] = {
 
 static enum power_supply_property ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static enum power_supply_property usb_props[] = {
@@ -5094,6 +5102,7 @@ static struct ac_data ac_main = {
 		.get_property = ac_get_property,
 	},
 	.AC_ONLINE = 0,
+	.is_fast_charger = 0,
 };
 
 /* usb_data initialization */
@@ -5106,7 +5115,6 @@ static struct usb_data usb_main = {
 		.get_property = usb_get_property,
 	},
 	.USB_ONLINE = 0,
-	.is_fast_charger = 0,
 };
 
 static const struct power_supply_desc psy_default = {
@@ -5148,7 +5156,7 @@ static void cm_update_charger_type_status(struct charger_manager *cm)
 		wireless_main.WIRELESS_ONLINE = 0;
 		ac_main.AC_ONLINE = 0;
 		usb_main.USB_ONLINE = 0;
-		usb_main.is_fast_charger = 0;
+		ac_main.is_fast_charger = 0;
 	}
 }
 
@@ -6358,9 +6366,6 @@ static void cm_batt_works(struct work_struct *work)
 		 cm->desc->thm_info.thm_adjust_cur, cm->desc->thm_info.thm_pwr,
 		 cm->desc->is_fast_charge, cm->desc->enable_fast_charge, flush_time, period_time);
 
-	if (cm->desc->is_fast_charge)
-		usb_main.is_fast_charger = 1;
-
 	switch (cm->desc->charger_status) {
 	case POWER_SUPPLY_STATUS_CHARGING:
 		last_fuel_cap = fuel_cap;
@@ -6514,6 +6519,50 @@ schedule_cap_update_work:
 			   &cm->cap_update_work,
 			   CM_CAP_CYCLE_TRACK_TIME * HZ);
 }
+
+//add by fangduozhu.wt, SCP-3515, limit max charge cap begin
+static ssize_t store_enable_charging(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret;
+	unsigned long value;
+	struct power_supply *bat_psy;
+	union power_supply_propval propval;
+
+	bat_psy = power_supply_get_by_name("battery");
+	if (!bat_psy) {
+		dev_err(dev, "[%s] get psy 'battery' failed!\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret) {
+		dev_err(dev, "parse args to type long failed(ret:%d)!\n", ret);
+		return ret;
+	}
+	if (value) {
+		ret = power_supply_get_property(bat_psy,
+				POWER_SUPPLY_PROP_STARTCHARGING_TEST, &propval);
+		if (ret) {
+			dev_err(dev, "start charging failed(ret:%d)!\n", ret);
+			return ret;
+		} else {
+			dev_info(dev, "start charging success\n");
+		}
+	} else {
+		ret = power_supply_get_property(bat_psy,
+				POWER_SUPPLY_PROP_STOPCHARGING_TEST, &propval);
+		if (ret) {
+			dev_err(dev, "stop charging failed(ret:%d)!\n", ret);
+			return ret;
+		} else {
+			dev_info(dev, "stop charging success\n");
+		}
+	}
+	return size;
+}
+static DEVICE_ATTR(enable_charging, 0220, NULL, store_enable_charging);
+//add by fangduozhu.wt, SCP-3515, limit max charge cap end
 
 static int charger_manager_probe(struct platform_device *pdev)
 {
@@ -6792,6 +6841,14 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	queue_delayed_work(system_power_efficient_wq, &cm->cap_update_work, CM_CAP_CYCLE_TRACK_TIME * HZ);
 	INIT_DELAYED_WORK(&cm->uvlo_work, cm_uvlo_check_work);
+
+//add by fangduozhu.wt, SCP-3515, limit max charge cap begin
+	ret = device_create_file(&pdev->dev, &dev_attr_enable_charging);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to create sysfs attr enable_charging, ret = %d\n", ret);
+		goto err_reg_sysfs;
+	}
+//add by fangduozhu.wt, SCP-3515, limit max charge cap end
 
 	return 0;
 

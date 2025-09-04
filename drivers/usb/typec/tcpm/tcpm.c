@@ -1656,7 +1656,10 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 		}
 		break;
 	case PD_DATA_ALERT:
-		tcpm_handle_alert(port, msg->payload, cnt);
+		if (1)
+			tcpm_queue_message(port, PD_MSG_CTRL_NOT_SUPP);
+		else
+			tcpm_handle_alert(port, msg->payload, cnt);
 		break;
 	case PD_DATA_BATT_STATUS:
 	case PD_DATA_GET_COUNTRY_INFO:
@@ -4750,14 +4753,8 @@ static int tcpm_psy_set_prop(struct power_supply *psy,
 			ret = tcpm_pps_set_out_volt(port, val->intval / 1000);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		if (val->intval > port->pps_data.max_curr * 1000) {
-//add by fangduozhu.wt, SCP-3023, acquire max current supported if not match begin
-			ret = tcpm_pps_set_op_curr(port, port->pps_data.max_curr);
-			pr_err("[%s] fail to set current %dmA(>max_current_support:%dmA), set %dmA, ret:%d\n",
-					__func__, val->intval/1000, port->pps_data.max_curr, port->pps_data.max_curr, ret);
-//add by fangduozhu.wt, SCP-3023, acquire max current supported if not match end
+		if (val->intval > port->pps_data.max_curr * 1000)
 			ret = -EINVAL;
-		}
 		else
 			ret = tcpm_pps_set_op_curr(port, val->intval / 1000);
 		break;

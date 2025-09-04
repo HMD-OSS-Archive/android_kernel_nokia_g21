@@ -88,6 +88,7 @@ struct sprd_sdhc_host {
 	const char *device_name;
 	struct platform_device *pdev;
 
+	int tuning_flag;// SCP-3659 ling.yi add Unisoc patch Bug #1762756 mmc: add high speed mode tuning start
 	int detect_gpio;
 	u32 ocr_avail;
 	u32 ocr_mask;

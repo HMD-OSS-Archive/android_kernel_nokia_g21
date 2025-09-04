@@ -193,13 +193,13 @@ struct ac_data {
 	struct power_supply_desc psd;
 	struct power_supply *psy;
 	int AC_ONLINE;
+	int is_fast_charger;
 };
 
 struct usb_data {
 	struct power_supply_desc psd;
 	struct power_supply *psy;
 	int USB_ONLINE;
-	int is_fast_charger;
 };
 
 /**

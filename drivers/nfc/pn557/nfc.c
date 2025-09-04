@@ -588,7 +588,9 @@ static int __init nfc_dev_init(void)
     if(strstr(saved_command_line,"board_id=T19655JA1") ||
         strstr(saved_command_line,"board_id=T19655KA1") ||
         strstr(saved_command_line,"board_id=T19655LA1") ||
-        strstr(saved_command_line,"board_id=T19655YA1")){
+        strstr(saved_command_line,"board_id=T19655YA1") ||
+	strstr(saved_command_line,"board_id=T19655VA1") ||
+	strstr(saved_command_line,"board_id=T19655WA1")){
         pr_info("Loading NXP NFC driver\n");
         return i2c_add_driver(&nfc_driver);
     }else{

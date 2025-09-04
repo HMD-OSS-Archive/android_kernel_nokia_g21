@@ -1758,6 +1758,13 @@ static int bq25890_charger_disable_otg(struct regulator_dev *dev)
 		return ret;
 	}
 
+	ret = bq25890_update_bits(info, BQ25890_REG_03, REG03_CHG_CONFIG_MASK,
+			  REG03_CHG_ENABLE << REG03_CHG_CONFIG_SHIFT);
+	if (ret) {
+		dev_err(info->dev, "enable bq25890 chg failed\n");
+		return ret;
+	}
+
 	/* Enable charger detection function to identify the charger type */
 	return regmap_update_bits(info->pmic, info->charger_detect,
 				  BIT_DP_DM_BC_ENB, 0);
