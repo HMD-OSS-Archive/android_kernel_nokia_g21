@@ -973,15 +973,21 @@ static ssize_t flash_name_show(struct device *dev,
             break;
         case 0xF4:
             vendor_name = "BIWIN";
+	  		if (strncmp(card->cid.prod_name, "ARV21X", strlen("ARV21X")) == 0)
+                emcp_name = "BWCTARV21X128G";
+	  		else if (strncmp(card->cid.prod_name, "ARV11X", strlen("ARV11X")) == 0)
+                emcp_name = "BWCTARV11X64G";
+            else
+                emcp_name = NULL;
             break;
         case 0x88:
             vendor_name = "longsys";		
             break;
         case 0xd6:
-	  vendor_name = "FORESEE";
-	  if (strncmp(card->cid.prod_name, "A3A562", strlen("A3A562")) == 0)
+	  		vendor_name = "FORESEE";
+	  		if (strncmp(card->cid.prod_name, "A3A562", strlen("A3A562")) == 0)
                 emcp_name = "FEMDNN128G-A3A56";
-	  else if (strncmp(card->cid.prod_name, "A3A551", strlen("A3A551")) == 0)
+	  		else if (strncmp(card->cid.prod_name, "A3A551", strlen("A3A551")) == 0)
                 emcp_name = "FEMDNN032G-A3A55";
             else if (strncmp(card->cid.prod_name, "A3A561", strlen("A3A561")) == 0)
                 emcp_name = "FEMDNN064G-A3A56";

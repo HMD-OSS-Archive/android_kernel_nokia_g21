@@ -4182,6 +4182,8 @@ static int cm_get_target_status(struct charger_manager *cm)
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 #endif
 //-chk2828, fangduozhu, add, 20210908, for ato charging capacity control
+	if (cm->force_stop_charge)
+		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 	if (is_full_charged(cm))
 		return POWER_SUPPLY_STATUS_FULL;

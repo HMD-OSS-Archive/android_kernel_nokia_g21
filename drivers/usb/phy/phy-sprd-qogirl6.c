@@ -80,7 +80,7 @@ struct sprd_hsphy {
 	bool			is_host;
 };
 
-#define FULLSPEED_USB33_TUNE		2700000
+#define FULLSPEED_USB33_TUNE		3300000
 
 static int boot_cali;
 static __init int sprd_hsphy_cali_mode(char *str)
